@@ -54,8 +54,6 @@ void setup()
 
 void loop()
 {
-//Display information every time a new sentence is correctly encoded.
-  if (Serial1.available())
   {
   // This sketch displays information every time a new sentence is correctly encoded.
   while (Serial1.available() > 0)

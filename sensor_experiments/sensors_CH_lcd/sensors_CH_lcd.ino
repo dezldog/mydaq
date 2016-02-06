@@ -1,15 +1,12 @@
-//dezldog 2016
-// Getting data from DHT humidity/temperature, a potentiometer, a gps, and a CDS cell
-// much code borrowed from many.
+//dezldog 31JAN16
+// Getting data from DHT humidity/temperature, a potentiometer, and a CDS cell
+// code borrowed from many.
 
 #include "DHT.h"
 #include "TinyGPS++.h"
-#include "Adafruit_GPS.h"
+#include "SoftwareSerial.h"
 #include "Wire.h"
 #include "Adafruit_LiquidCrystal.h"
-
-// Connect to lcd via i2c
-Adafruit_LiquidCrystal lcd(0);
 
 #define DHTPIN0 2     // what pins DHTs are connected to
 #define DHTPIN1 4
@@ -18,18 +15,16 @@ Adafruit_LiquidCrystal lcd(0);
 #define PROBE_1 "Inside"
 
 //Sample time in seconds
-const int sampleSeconds = 30;
-const int sampleMultiplier = 100;
+const int sampleSeconds = 5; //for now, should be longer
+const int sampleMultiplier = 1000;
 int sampleDelay = (sampleSeconds * sampleMultiplier);
+
+// Instansiate LCD object
+Adafruit_LiquidCrystal lcd(0);
 
 // Initialize DHT sensors
 DHT dht0(DHTPIN0, DHTTYPE);
 DHT dht1(DHTPIN1, DHTTYPE);
-
-//initialize distance module pins
-int trigPin = 22;
-int echoPin = 23;
-
 
 //define photocell input/variable
 int photocellPin = 0;     // the cell and 10K pulldown are connected to a0
@@ -44,8 +39,11 @@ float yIntercept = 646.00;
 float xIntercept = 3.3;
 float slope = ((0 - xIntercept) / (yIntercept - 0));
 
-//Stuff for hdwe serial port
+//Set up softwareserial
+int rxPin = 8;
+int txPin = 7;
 int GPSBaud = 9600;
+SoftwareSerial gpsSerial(rxPin, txPin); // create gps sensor connection
 
 //Set up GPS
 //long lat,lon; // create variable for latitude and longitude object
@@ -54,21 +52,25 @@ TinyGPSPlus gps; // create gps object
 void setup()
 {
   //start gps
-  Serial.begin(57600);
-  Serial1.begin (GPSBaud);
+  Serial.begin(115200);
+  gpsSerial.begin (GPSBaud);
   //start dht
   dht0.begin();
   dht1.begin();
-  // set up the LCD's number of rows and columns: 
   lcd.begin(16, 4);
-  lcd.setBacklight(HIGH);
+  // Print a message to the LCD
+  lcd.print("LCD Setup Complete");
+  Serial.println("Serial Setup Complete");
+  delay(5000);
+  lcd.clear();
 }
 
 void loop()
 {
   // This sketch displays information every time a new sentence is correctly encoded.
-  while (Serial1.available() > 0)
-    if (gps.encode(Serial1.read()))
+  while (gpsSerial.available() > 0)
+    if (gps.encode(gpsSerial.read()))
+    {
       displayInfo();
       // Send data to the LCD too
       lcd.setCursor(0, 0);
@@ -111,8 +113,15 @@ void loop()
       lcd.print(gps.location.lat(), 6);
       lcd.setCursor(5, 3);
       lcd.print(gps.location.lng(), 6);
+    }
+
+  if (millis() > 5000 && gps.charsProcessed() < 10)
+  {
+    Serial.println(F("No GPS detected: check wiring."));
+    while (true);
   }
-  
+}
+
 void displayInfo()
 {
 
@@ -129,9 +138,11 @@ void displayInfo()
   // Check if any reads failed and exit early (to try again).
   if (isnan(h0) || isnan(t0) || isnan(f0)) {
     Serial.println("Failed to read from DHT0 sensor!");
+    return;
   }
   if (isnan(h1) || isnan(t1) || isnan(f1)) {
     Serial.println("Failed to read from DHT1 sensor!");
+    return;
   }
 
   float hif0 = dht0.computeHeatIndex(f0, h0);    // Compute heat index in Fahrenheit (the default)
@@ -140,7 +151,7 @@ void displayInfo()
   float hif1 = dht1.computeHeatIndex(f1, h1);
   float hic1 = dht1.computeHeatIndex(t1, h1, false);
 
-  //Process a/d readings
+  //Process CDS cell reading
   photocellReading = analogRead(photocellPin);
   potReading = analogRead(potPin);
 
@@ -148,6 +159,11 @@ void displayInfo()
   float volts = 3.3 + (potReading * slope);
 
   //Get and process GPS data
+  if (millis() > 5000 && gps.charsProcessed() < 10)
+  {
+    Serial.println(F("No GPS detected"));
+    while (true);
+  }
 
   Serial.print(F("Date: "));
   if (gps.date.isValid())
@@ -182,61 +198,41 @@ void displayInfo()
     Serial.println();
   }
 
-  //Get and process distance data
-  
   //Prtint out all the things
-  // Serial.print(gps.date.day);Serial.print(gps.date.month);Serial.print(gps.date.year);
+  //  Serial.print(gps.date.day);Serial.print(gps.date.month);Serial.print(gps.date.year);
   // Serial.println(gps.time);
   Serial.print("CDS cell value = "); Serial.println(photocellReading);
   Serial.print("Potentiometer reading = "); Serial.print( volts); Serial.println(" V");
-  Serial.print("LAT=");  Serial.println(gps.location.lat(), 6);
-  Serial.print("LONG="); Serial.println(gps.location.lng(), 6);
-  Serial.print("ALT=");  Serial.println(gps.altitude.meters());
-  Serial.println();
-  Serial.print(PROBE_0" Humidity: ");
+  Serial.print("LAT= ");  Serial.println(gps.location.lat(), 6);
+  Serial.print("LONG= "); Serial.println(gps.location.lng(), 6);
+  Serial.print("ALT= ");  Serial.println(gps.altitude.meters());
+  Serial.print(PROBE_0",humid,");
   Serial.print(h0);
-  Serial.print(" %");
-  Serial.println();
-  Serial.print(PROBE_0" Temp: ");
+  Serial.print(",");
+  Serial.print("temp,");
   Serial.print(t0);
-  Serial.print(" C");
-  Serial.println();
-  Serial.print(PROBE_0" Temp: ");
+  Serial.print(",");
   Serial.print(f0);
-  Serial.print(" F");
-  Serial.println();
-  Serial.print(PROBE_0" Heat Index: ");
+  Serial.print(",");
+  Serial.print("h_index,");
   Serial.print(hic0);
-  Serial.print(" C");
-  Serial.println();
-  Serial.print(PROBE_0" Heat Index: ");
+  Serial.print(",");
   Serial.print(hif0);
-  Serial.print(" F");
   Serial.println();
-  Serial.println();
-  Serial.print(PROBE_1" Humidity: ");
+  Serial.print(PROBE_1",humid,");
   Serial.print(h1);
-  Serial.print(" %");
-  Serial.println();
-  Serial.print(PROBE_1" Temp: ");
+  Serial.print(",");
+  Serial.print("temp,");
   Serial.print(t1);
-  Serial.print(" C");
-  Serial.println();
-  Serial.print(PROBE_1" Temp: ");
+  Serial.print(",");
   Serial.print(f1);
-  Serial.print(" F");
-  Serial.println();
-  Serial.print(PROBE_1" Heat Index: ");
+  Serial.print(",");
+  Serial.print("h_index: ");
   Serial.print(hic1);
-  Serial.print(" C");
-  Serial.println();
-  Serial.print(PROBE_1" Heat Index: ");
+  Serial.print(",");
   Serial.print(hif1);
-  Serial.print(" F");
   Serial.println();
   Serial.println();
 
   delay(sampleDelay); //Wait between samples
 }
-
-
