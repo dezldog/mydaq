@@ -297,7 +297,7 @@ void displayLcd()
   lcd.print('/');
   lcd.print(GPS.month);
   lcd.print("/20");
-  lcd.println(GPS.year);
+  lcd.print(GPS.year);
   lcd.setCursor(0, 2);
   lcd.print("Lat:  "); lcd.print(GPS.latitudeDegrees, 6);
   lcd.setCursor(0, 3);
