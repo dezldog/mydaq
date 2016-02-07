@@ -15,14 +15,14 @@
 #define PROBE_1 "Inside"
 
 //Sample time in seconds
-const int sampleSeconds = 5; //for now, should be longer
-const int sampleMultiplier = 1000;
+const int sampleSeconds = 10; //for now, should be longer
+const int sampleMultiplier = 1000; //because milliseconds
 int sampleDelay = (sampleSeconds * sampleMultiplier);
 
 // Instansiate LCD object
 Adafruit_LiquidCrystal lcd(0);
 
-// Initialize DHT sensors
+// Instansiate DHT sensors
 DHT dht0(DHTPIN0, DHTTYPE);
 DHT dht1(DHTPIN1, DHTTYPE);
 
@@ -45,7 +45,7 @@ int txPin = 7;
 int GPSBaud = 9600;
 SoftwareSerial gpsSerial(rxPin, txPin); // create gps sensor connection
 
-//Set up GPS
+//Instansiate GPS
 //long lat,lon; // create variable for latitude and longitude object
 TinyGPSPlus gps; // create gps object
 
@@ -61,7 +61,7 @@ void setup()
   // Print a message to the LCD
   lcd.print("LCD Setup Complete");
   Serial.println("Serial Setup Complete");
-  delay(5000);
+  delay(3000);
   lcd.clear();
 }
 
@@ -71,60 +71,20 @@ void loop()
   while (gpsSerial.available() > 0)
     if (gps.encode(gpsSerial.read()))
     {
-      displayInfo();
-      // Send data to the LCD too
-      lcd.setCursor(0, 0);
-      lcd.print("Time: ");
-      lcd.setCursor(0, 1);
-      lcd.print("Date: ");
-      lcd.setCursor(0, 2);
-      lcd.print("Lat: ");
-      lcd.setCursor(0, 3);
-      lcd.print("Lon: ");
-      lcd.setCursor(0, 4);
-      lcd.setCursor(6, 0);
-      lcd.print(gps.time.hour());
-      lcd.setCursor(8, 0);
-      lcd.print(":");
-      if (gps.time.minute() < 10)
-      { lcd.setCursor(9, 0);
-        lcd.print("0");
-        lcd.setCursor(10, 0);
-        lcd.print(gps.time.minute());
-      }
-      lcd.setCursor(9, 0);
-      lcd.print(gps.time.minute());
-      lcd.setCursor(11, 0);
-      lcd.print(" GMT");
-      lcd.setCursor(6, 1);
-      if (gps.date.isValid())
+      if (millis() > 5000 && gps.charsProcessed() < 10)
       {
-        lcd.print(gps.date.month());
-        lcd.print("/");
-        lcd.print(gps.date.day());
-        lcd.print("/");
-        lcd.print(gps.date.year());
+        Serial.println(F("No GPS detected: check wiring."));
+        while (true);
+        return;
       }
-      else
-      {
-        lcd.print("INVALID");
-      }
-      lcd.setCursor(5, 2);
-      lcd.print(gps.location.lat(), 6);
-      lcd.setCursor(5, 3);
-      lcd.print(gps.location.lng(), 6);
     }
-
-  if (millis() > 5000 && gps.charsProcessed() < 10)
-  {
-    Serial.println(F("No GPS detected: check wiring."));
-    while (true);
-  }
+  displayInfo();
+  displayLcd();
+  delay(sampleDelay); //Wait between samples
 }
 
 void displayInfo()
 {
-
   //Process DHT data
   float h0 = dht0.readHumidity();
   float t0 = dht0.readTemperature();
@@ -133,7 +93,6 @@ void displayInfo()
   float h1 = dht1.readHumidity();
   float t1 = dht1.readTemperature();
   float f1 = dht1.readTemperature(true);
-
 
   // Check if any reads failed and exit early (to try again).
   if (isnan(h0) || isnan(t0) || isnan(f0)) {
@@ -159,12 +118,7 @@ void displayInfo()
   float volts = 3.3 + (potReading * slope);
 
   //Get and process GPS data
-  if (millis() > 5000 && gps.charsProcessed() < 10)
-  {
-    Serial.println(F("No GPS detected"));
-    while (true);
-  }
-
+  gps.encode(gpsSerial.read());
   Serial.print(F("Date: "));
   if (gps.date.isValid())
   {
@@ -197,42 +151,117 @@ void displayInfo()
     Serial.print(F("INVALID"));
     Serial.println();
   }
-
-  //Prtint out all the things
-  //  Serial.print(gps.date.day);Serial.print(gps.date.month);Serial.print(gps.date.year);
-  // Serial.println(gps.time);
   Serial.print("CDS cell value = "); Serial.println(photocellReading);
   Serial.print("Potentiometer reading = "); Serial.print( volts); Serial.println(" V");
-  Serial.print("LAT= ");  Serial.println(gps.location.lat(), 6);
-  Serial.print("LONG= "); Serial.println(gps.location.lng(), 6);
-  Serial.print("ALT= ");  Serial.println(gps.altitude.meters());
-  Serial.print(PROBE_0",humid,");
+  Serial.print("LAT=");  Serial.println(gps.location.lat(), 6);
+  Serial.print("LONG="); Serial.println(gps.location.lng(), 6);
+  Serial.print("ALT=");  Serial.println(gps.altitude.meters());
+  Serial.print(PROBE_0" Humidity: ");
   Serial.print(h0);
-  Serial.print(",");
-  Serial.print("temp,");
+  Serial.print(" %");
+  Serial.println();
+  Serial.print(PROBE_0" Temp: ");
   Serial.print(t0);
-  Serial.print(",");
+  Serial.print(" C");
+  Serial.println();
+  Serial.print(PROBE_0" Temp: ");
   Serial.print(f0);
-  Serial.print(",");
-  Serial.print("h_index,");
+  Serial.print(" F");
+  Serial.println();
+  Serial.print(PROBE_0" Heat Index: ");
   Serial.print(hic0);
-  Serial.print(",");
+  Serial.print(" C");
+  Serial.println();
+  Serial.print(PROBE_0" Heat Index: ");
   Serial.print(hif0);
+  Serial.print(" F");
   Serial.println();
-  Serial.print(PROBE_1",humid,");
+  Serial.print(PROBE_1" Humidity: ");
   Serial.print(h1);
-  Serial.print(",");
-  Serial.print("temp,");
+  Serial.print(" %");
+  Serial.println();
+  Serial.print(PROBE_1" Temp: ");
   Serial.print(t1);
-  Serial.print(",");
+  Serial.print(" C");
+  Serial.println();
+  Serial.print(PROBE_1" Temp: ");
   Serial.print(f1);
-  Serial.print(",");
-  Serial.print("h_index: ");
+  Serial.print(" F");
+  Serial.println();
+  Serial.print(PROBE_1" Heat Index: ");
   Serial.print(hic1);
-  Serial.print(",");
+  Serial.print(" C");
+  Serial.println();
+  Serial.print(PROBE_1" Heat Index: ");
   Serial.print(hif1);
+  Serial.print(" F");
   Serial.println();
   Serial.println();
+}
 
-  delay(sampleDelay); //Wait between samples
+void displayLcd()
+{
+  // Send data to the LCD too
+  lcd.setCursor(0, 0);
+  lcd.print("Time: ");
+  lcd.setCursor(0, 1);
+  lcd.print("Date: ");
+  lcd.setCursor(0, 2);
+  lcd.print("Lat: ");
+  lcd.setCursor(0, 3);
+  lcd.print("Lon: ");
+  if (gps.time.isValid())
+  {
+    if (gps.time.hour() < 10)
+    {
+      lcd.setCursor(6, 0);
+      lcd.print("0");
+      lcd.setCursor(7, 0);
+      lcd.print(gps.time.hour());
+    }
+    else
+      {
+        lcd.setCursor(6, 0);
+        lcd.print(gps.time.hour());
+      }
+    lcd.print(":");
+    if (gps.time.minute() < 10)
+    { lcd.setCursor(9, 0);
+      lcd.print("0");
+      lcd.setCursor(10, 0);
+      lcd.print(gps.time.minute());
+    }
+    else
+    {
+      lcd.setCursor(9, 0);
+      lcd.print(gps.time.minute());
+    }
+    lcd.setCursor(11, 0);
+    lcd.print(" GMT");
+    lcd.setCursor(6, 1);
+}
+  else
+  {
+    lcd.setCursor(6,0);
+    lcd.print("INVALID");
+    }
+
+
+  if (gps.date.isValid())
+  {
+    lcd.print(gps.date.month());
+    lcd.print("/");
+    lcd.print(gps.date.day());
+    lcd.print("/");
+    lcd.print(gps.date.year());
+  }
+  else
+  {
+    lcd.setCursor(6,1);
+    lcd.print("INVALID");
+  }
+  lcd.setCursor(5, 2);
+  lcd.print(gps.location.lat(), 6);
+  lcd.setCursor(5, 3);
+  lcd.print(gps.location.lng(), 6);
 }
