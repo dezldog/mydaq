@@ -1,5 +1,6 @@
 //dezldog 31JAN16
-// Getting data from DHT humidity/temperature, a potentiometer, and a CDS cell
+// Getting data from DHT humidity/temperature, a potentiometer, a CDS cell, and a GPS
+// output them to serial and LCD
 // code borrowed from many.
 
 #include "DHT.h"
@@ -15,7 +16,7 @@
 #define PROBE_1 "Inside"
 
 //Sample time in seconds
-const int sampleSeconds = 10; //for now, should be longer
+const int sampleSeconds = 30;
 const int sampleMultiplier = 1000; //because milliseconds
 int sampleDelay = (sampleSeconds * sampleMultiplier);
 
@@ -46,7 +47,6 @@ int GPSBaud = 9600;
 SoftwareSerial gpsSerial(rxPin, txPin); // create gps sensor connection
 
 //Instansiate GPS
-//long lat,lon; // create variable for latitude and longitude object
 TinyGPSPlus gps; // create gps object
 
 void setup()
@@ -74,14 +74,15 @@ void loop()
       if (millis() > 5000 && gps.charsProcessed() < 10)
       {
         Serial.println(F("No GPS detected: check wiring."));
-        while (true);
         return;
       }
+      displayInfo();
+      displayLcd();
+      delay(sampleDelay); //Wait between samples
     }
-  displayInfo();
-  displayLcd();
-  delay(sampleDelay); //Wait between samples
 }
+
+
 
 void displayInfo()
 {
@@ -220,10 +221,10 @@ void displayLcd()
       lcd.print(gps.time.hour());
     }
     else
-      {
-        lcd.setCursor(6, 0);
-        lcd.print(gps.time.hour());
-      }
+    {
+      lcd.setCursor(6, 0);
+      lcd.print(gps.time.hour());
+    }
     lcd.print(":");
     if (gps.time.minute() < 10)
     { lcd.setCursor(9, 0);
@@ -239,14 +240,12 @@ void displayLcd()
     lcd.setCursor(11, 0);
     lcd.print(" GMT");
     lcd.setCursor(6, 1);
-}
+  }
   else
   {
-    lcd.setCursor(6,0);
+    lcd.setCursor(6, 0);
     lcd.print("INVALID");
-    }
-
-
+  }
   if (gps.date.isValid())
   {
     lcd.print(gps.date.month());
@@ -257,7 +256,7 @@ void displayLcd()
   }
   else
   {
-    lcd.setCursor(6,1);
+    lcd.setCursor(6, 1);
     lcd.print("INVALID");
   }
   lcd.setCursor(5, 2);
