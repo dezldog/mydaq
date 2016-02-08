@@ -214,6 +214,8 @@ void displayInfo()
   float volts = 3.3 + (potReading * slope);
 
   //Print the other data
+  Serial.print("CDS cell value = "); Serial.println(photocellReading);
+  Serial.print("Potentiometer reading = "); Serial.print( volts); Serial.println(" V");
   Serial.print(PROBE_0" Humidity: ");
   Serial.print(h0);
   Serial.print(" %");
@@ -261,11 +263,21 @@ void displayLcd()
 {
   int minutes = 0;
   int seconds = 0;
+  int hours = 0;
 
   // Send data to the LCD too
   lcd.setCursor(0, 0);
   lcd.print("Time: ");
-  lcd.print(GPS.hour);
+  hours = GPS.hour;
+  if (hours < 10)
+  {
+    lcd.print("0");
+    lcd.print(hours);
+  }
+  else
+  {
+    lcd.print(hours);
+  }
   lcd.print(':');
   minutes = GPS.minute;
   if (minutes < 10)
@@ -275,7 +287,6 @@ void displayLcd()
   }
   else
   {
-    lcd.setCursor(10, 0);
     lcd.print(GPS.minute);
   }
   lcd.print(':');
@@ -287,15 +298,14 @@ void displayLcd()
   }
   else
   {
-    lcd.setCursor(11, 0);
     lcd.print(seconds);
   }
   lcd.print(" GMT");
   lcd.setCursor(0, 1);
   lcd.print("Date: ");
-  lcd.print(GPS.day);
-  lcd.print('/');
   lcd.print(GPS.month);
+  lcd.print('/');
+  lcd.print(GPS.day);
   lcd.print("/20");
   lcd.print(GPS.year);
   lcd.setCursor(0, 2);
