@@ -18,7 +18,8 @@ while :; do
 	for lednum in {1..32};
 		do 
 			megaio -lw $lednum on;
-			sleep ($1/100);
+			let "t = $1 /100";
+			sleep $t;
 			megaio -lw $lednum off;
 			
 	done
